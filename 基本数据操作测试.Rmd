@@ -1,0 +1,638 @@
+---
+title: "R中基本数据类型及操作"
+author: "周世祥"
+date: "2020年5月17日"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R中的数据类型
+
+### 电影数据 
+
+```{r}
+rm(list = ls())
+movie = read.csv("电影数据.csv", header = T, fileEncoding = "UTF-8")
+head(movie)
+```
+### 基本数据类型
+
+### 1.数值型 ###
+# 电影数据示例
+```{r}
+class(movie$"boxoffice");
+class(movie$doubanscore)
+```
+```{r}
+# 自己为变量赋一个数值
+a = 2; class(a)
+```
+```{r}
+exp(1000)  # 正无穷
+ 
+-10 / 0  # 负无穷
+ 
+exp(1000) / exp(990)  # NaN类型
+ 
+exp(10) 
+##  [1] 22026.47
+```
+### 2.字符型 ###
+# 字符的定义
+```{r}
+a = "2"
+class(a)
+ 
+
+# 判断电影数据集中，变量“type","name"是不是字符型变量
+class(movie$type)
+ 
+class(movie$name)
+```
+
+### 3.逻辑型数据 ###
+# 读入数据时设置把字符数据保留，不转换为factor
+```{r}
+movie = read.csv("电影数据.csv", header = T, stringsAsFactors = F, fileEncoding = "UTF-8")
+movie$type[movie$name == "美人鱼"] == "喜剧" 
+ 
+# 想在数据集中挑选大于7分的喜剧电影name？
+movie$name[movie$type == "喜剧" & movie$"doubanscore" > 7]
+ 
+# 逻辑语句加减
+(1 == 2) + (3 < 4)
+```
+
+
+### 4.因子型数据 ###
+## (1) 什么是因子型数据 ##
+```{r}
+(genders = factor(c("男", "女", "女", "男", "男")))
+ 
+(class = factor(c("Poor", "Improved", "Excellent"), ordered = T))
+```
+## (2) 如何改变因子型数据各水平的编码顺序 ##```
+```{r}
+
+(class = factor(c("Poor", "Improved", "Excellent"), ordered = T,
+              levels = c("Poor", "Improved", "Excellent")))
+```
+
+## (3) 如何正确将因子型数据和字符型数据互相转化 ##
+# 输入原始字符变量
+```{r}
+all = c("男", "女", "女", "男", "男")
+# 将字符型变量变成因子型
+gender = as.factor(all)
+# 变换后的数据类型
+is.factor(gender)
+ 
+class(gender)
+ 
+# 将因子型变量变成字符型
+genders = as.character(gender)
+# 变换后的数据类型
+is.character(genders)
+ 
+class(genders)
+```
+### 5.时间类数据 ###
+## (1) 如何把字符转化成Date日期格式 ##
+# 函数head用来查看数据前6个元素，函数class用来查看对象数据类型
+```{r}
+head(movie$showtime)
+ 
+class(movie$showtime)
+ 
+movie$showtime = as.Date(movie$showtime)
+head(movie$showtime)
+ 
+class(movie$showtime)
+ 
+Sys.setlocale("LC_TIME", "C")
+ 
+x = c("1jan1960", "2jan1960", "31mar1960", "30jul1960")
+# y = as.Date(x)
+(y = as.Date(x, format = "%d%b%Y"))
+```
+
+## (2) 如何把字符转化成POSIXct/POSIXlt时间格式 ##
+```{r}
+as.POSIXct("2015-11-27 01:30:00")
+ 
+# as.POSIXct("November-27-2015 01:30:00")
+as.POSIXct("November-27-2015 01:30:00", format = "%B-%d-%Y %H:%M:%S")
+```
+## (3) 如何把时间数据摆弄成你想要的形式 ##
+```{r}
+(m = head(movie$showtime))  # 原始日期数据
+ 
+format(m, format = "%B %d %Y")  # 改成月日年的格式
+ 
+format(m, format = "%B %d %Y %A")  # 加入星期信息
+ 
+format(m, format = "%B")  # 只提取出月份信息
+ 
+Sys.time()  # 输出系统时间
+ 
+class(Sys.time())  # 查看时间类型
+ 
+format(Sys.time(), format = "%B %d %Y")  # 提取部分时间信息
+ 
+format(Sys.time(), format = "%Y/%B/%a %H:%M:%S")  # 提取部分时间信息
+```
+## (4) 一款处理时间数据的专用包lubridate ##
+```{r}
+# install.packages(lubridate)
+library(lubridate)
+x = c(20090101, "2009-01-02", "2009 01 03", "2009-1-4", "2009-1,5", "Created on 2009 1 6", "200901 !!! 07")
+ymd(x)
+ 
+mday(as.Date("2015-11-20"))
+ 
+wday(as.Date("2015-11-20"))
+ 
+hour(as.POSIXct("2015-11-20 01:30:00"))
+ 
+minute(as.POSIXct("2015-11-20 01:30:00"))
+
+```
+## (5) 时间类数据的操作 ##
+```{r}
+# 做差
+# 求任意两个日期距离的天数
+begin = as.Date("2016-03-04")
+end = as.Date("2016-05-08")
+(during = end - begin)
+ 
+# 求任意两个日期距离的周数和小时数
+difftime(end, begin, units = "weeks")
+ 
+difftime(end, begin, units = "hours")
+```
+
+ 
+
+# 排序
+# 单独对时间进行排序
+```{r}
+head(movie$showtime)
+ 
+head(sort(movie$showtime))
+```
+# 对数据表格中的数据按照时间顺序排列,这里只选取前6行，部分列做展示
+```{r}
+head(movie[order(movie$showtime), c("name", "showtime")])
+
+```
+
+##### 2.1 R中的数据类型 #####
+rm(list = ls())
+movie = read.csv("电影数据.csv", fileEncoding = "UTF-8", stringsAsFactors = F)
+
+#### 2.1.2 向量 ####
+
+### 一、基本操作 ###
+## 1.向量的创建 ##
+```{r}
+c(1, 1, 1, 2, 3, 3, 1, 2, 4, 1, 2, 4, 4, 2, 3, 4, 1, 2, 3, 4)
+ 
+c("a", "b", "c", "d")
+ 
+# seq(起始值, 终止值, 步长)
+seq(0, 10, by = 2) 
+ 
+1:10
+```
+```{r} 
+# sample(被抽取的数据集合, 抽取数量)
+set.seed(1234)
+sample(1:10, 5) 
+ 
+paste0("x_", 1:5)
+```
+## 2.向量的引用 ##
+```{r}
+
+# 引用x向量中的第5个元素
+x=c(1, 1, 1, 2, 3, 3)
+x[5]
+ 
+# 想看看x向量中3所在的位置
+which(x == 3)
+ 
+which.max(x)
+ 
+which.min(x)
+```
+
+## 3.集合运算 ##
+```{r}
+intersect(c(1, 2, 3, 3, 12, 4, 123, 12), c(1, 2, 3))
+ 
+union(c("狗熊会", "聚数据英才"), c("狗熊会", "助产业振兴"))
+ 
+setdiff(10:2, 5:3)
+```
+### 二、常见类型 ###
+
+## 1.数值向量的花式玩法 ##
+```{r}
+# match函数
+x = c(1, 1, 1, 2, 3, 3, 1, 2, 4, 1, 2, 4, 4, 2, 3, 4, 1, 2, 3, 4)
+(y = letters[x])  # letters是一个内置字符串，里面储存26个字母字符
+ 
+match(y, letters[1:4])
+ 
+
+# cut函数
+(Age = sample(21:100, 20, replace = T))
+ 
+# 将年龄数据离散化  
+label = c('壮年', '中年', '长辈', '老年')  
+(ages = cut(Age, breaks = c(20, 30, 50, 70, 100), labels = label))
+```
+```{r}
+# sort和order函数
+set.seed(1234)
+(x = sample(8, 5))
+ 
+sort(x)
+ 
+order(x)
+ 
+x[order(x)]
+```
+## 2.字符向量的花式玩法 ##
+```{r}
+# nchar用来提取字符串的长度
+nchar("欢迎关注狗熊会")
+ 
+# 看看数据集中的电影名字的长度分别是多少
+nchar(movie$name)
+ 
+# 中英文的字符长度计算方法有不同
+nchar("Welcome to follow the CluBear")
+ 
+# substr提取子字符串
+substr("欢迎关注狗熊会", 1, 4)
+ 
+substr("一懒众衫小", 3, 5)
+```
+```{r}
+# paste基本玩法
+paste(c("双11", "是个", "什么节日"), collapse = "")
+ 
+paste("A", 1:4)
+ 
+# paste花式玩法
+paste(1:4, collapse = "")
+ 
+paste(1:4, sep="")
+ 
+paste("A", 1:4, sep="_")
+```
+# 思考题
+自己测试一下：
+``` 
+paste(LETTERS[1:4], 1:4, collapse = "_")
+ 
+paste(LETTERS[1:4], 1:4, sep = "_", collapse = "|")
+ 
+paste(LETTERS[1:4], 1:4)
+ 
+
+txt = c("狗熊会", "CluBear", "双11", "生日")
+# 返回含有关键字的字符位置
+grep("Bear", txt)
+ 
+gsub("生日", "happy birthday", txt)
+ 
+
+# grep返回movie的name中包含“青春”的行号8，movie[8, ]即提取出movie数据集的第8行
+(index = grep("青春", movie$name))
+ 
+(young = movie[index, ])
+##              name boxoffice doubanscore type duration  showtime director
+ 
+ 
+# 看看它的豆瓣评分和票房处于我们电影数据集中的什么位置
+young$doubanscore > mean(movie$doubanscore)
+ 
+young$boxoffice > mean(movie$boxoffice)
+ 
+
+salary = c("22万", "30万", "50万", "120万", "11万")
+(salary0 = gsub("万", "0000", salary))
+ 
+mean(as.numeric(salary0))
+ 
+median(as.numeric(salary0))  # 结果是科学计数法的形式
+ 
+```
+##### 2.1 R中的数据类型 #####
+rm(list = ls())
+
+#### 2.1.3 矩阵 ####
+
+### 1.矩阵的创建与引用 ###
+# 生成全部是0的矩阵
+```{r}
+(zero = matrix(0, nrow = 3, ncol = 3))
+ 
+# 生成一个对角全是1的矩阵,直接在diag中输入对角线向量即可
+(dig = diag(rep(1, 4)))
+ 
+# 从已有数据转化成矩阵
+(M = matrix(1:12, nrow = 3, ncol = 4))
+ 
+(N = diag(1:4))
+ 
+```
+### 2.矩阵的常用操作 ###
+## (1) 矩阵概览 ##
+```{r}
+# 查看矩阵的维度
+dim(M) 
+ 
+# 提取矩阵的行数
+nrow(M) 
+ 
+# 提取矩阵的列数
+ncol(M)
+ 
+# 引用元素
+M[1, 2]
+ 
+M[1:2, 2:3]
+ 
+# 给行列命名
+colnames(M) = paste0("x_", 1:4)
+rownames(M) = 1:3; M
+ 
+# 同样的命令可调用行列名
+colnames(M)
+ 
+rownames(M)
+ 
+```
+
+## (2) 将多个矩阵合并 ##
+```{r}
+(A = matrix(1:9, nrow = 3, ncol = 3, byrow = T))
+ 
+(B = diag(11:13))
+ 
+rbind(A, B) 
+ 
+cbind(A, B) 
+``` 
+
+### 3.矩阵的数学操作 ###
+```{r}
+## (1) 矩阵的加减乘运算 ##
+A + B
+ 
+A - B
+ 
+A * B
+ 
+A %*% B
+``` 
+
+## (2) rARPACK的应用 ##
+```{r}
+# 打开这个包
+# install.packages("rARPACK")
+library(rARPACK)
+# 构造一个1000维的大型矩阵
+T = matrix(1:1000000, 1000, 1000)
+# 正常分解与快速分解的对比，此处以选择前5个特征（奇异）值为例
+system.time(svd(T))
+ 
+system.time(svds(T, 5)) 
+ 
+system.time(eigen(T))
+ 
+system.time(eigs(T, 5))
+``` 
+
+# 矩阵的转置、求逆及分解
+```{r}
+solve(B)  # 求矩阵逆
+ 
+t(A)      # 求矩阵转置
+ 
+eigen(A)  # 特征值分解
+##  eigen() decomposition
+##  $values
+ 
+svd(A)    # 奇异值svd分解
+```
+
+## (3) 稀疏矩阵 ##
+```{r}
+# install.packages("Matrix")
+library(Matrix)
+# 生成普通矩阵
+vector = c(1:3, rep(0, 5), 6:9)
+(m1 = matrix(vector, nrow = 3, ncol = 4))
+ 
+# 生成稀疏矩阵方法1
+(m2 = Matrix(vector, nrow = 3 ,ncol = 4, sparse = TRUE))
+ 
+(m3 = Matrix(vector, nrow = 3 ,ncol = 4, sparse = FALSE))
+  
+# 生成稀疏矩阵方法2
+(m4 = spMatrix(10, 20, i = c(1, 3:8), j = c(2, 9, 6:10), x = 7 * (1:7)))
+ 
+summary(m4)
+ 
+
+# 当行列数分别为10000时，稀疏矩阵的内存大小和生成时间优势均很明显。
+n = 10000
+m1 = matrix(0, nrow = n, ncol = n)
+m2 = Matrix(0, nrow = n, ncol = n, sparse = TRUE)
+object.size(m1); object.size(m2)
+ 
+system.time(matrix(0, nrow = n, ncol = n))
+ 
+system.time(Matrix(0, nrow = n, ncol = n, sparse = TRUE))
+```
+
+```{r}
+# 两种矩阵计算区别
+n = 1000
+dat = sample(c(0, 1), n^2, replace = TRUE, prob = c(0.9, 0.1))
+m1 = matrix(dat, nrow = n, ncol = n); m1[1:6, 1:6]
+ 
+m2 = Matrix(dat, nrow = n, ncol = n, sparse = TRUE); m2[1:6, 1:6]
+ 
+# 求乘积运算时间对比
+system.time(m1 %*% t(m1))
+ 
+system.time(m2 %*% t(m1))
+```
+
+##### 2.1 R中的数据类型 #####
+```{r}
+rm(list = ls())
+```
+#### 2.1.4 数据框 ####
+### 1.创建数据框 ###
+```{r}
+# 读入一个txt,csv等格式数据,即自成一个数据框
+movie = read.csv("电影数据.csv", fileEncoding = "UTF-8", stringsAsFactors = F)
+class(movie)
+ 
+# 自己创建
+star1 = c("邓超", "赵丽颖", "郭富城", "周润发", "杰克布莱克", "汤唯", "白敬亭", "陈晓", "梁家辉", "姚晨", "宋茜", "黄宗泽", "黄晓明")
+birthyear = c(1979, 1987, 1965, 1955, 1969, 1979, 1993, 1987, 1958, 1979, 1987, 1980, 1977)
+gender = c("男", "女", "男", "男", "男", "女", "男", "男", "男", "女", "女", "男", "男")
+stars = data.frame(star1, birthyear, gender); head(stars)
+ 
+```
+### 2.汇总 ###
+```{r}
+str(movie)
+
+summary(movie)
+head(movie)
+```
+### 3.变大--数据框的增列、合并 ###
+```{r}
+# 添加一列数据prefer
+prefer = 1:19
+movie$pre = prefer
+head(movie)
+```
+```{r}
+# merge实现的效果是：将movie和stars按照列star1匹配并合并起来
+(movie.star = merge(movie[1:3, ], stars,by = "star1")) 
+```
+```{r}
+# all.x=T,即取前一个数据框movie中star1列所有的值做合并，匹配不到赋值NA
+(movie.star = merge(movie[1:3, ], stars[1:5, ], by = "star1", all.x = T))
+```
+### 4.变小--数据的筛选、引用 ###
+# 引用
+```{r}
+movie[3, ]  # 查看第3行的电影信息
+movie[, 8]  # 查看第8列主演者的名字
+# 筛选
+movie$star1  # 用$符号通过列名引用
+(action = movie[movie$type == "动作", ])  # 选择数据中的动作电影
+(action_long = movie[movie$type == "动作" & movie$duration > 100, ])  # 放映时间超过100分钟的动作电影
+```
+### 5.变序--数据框的内部排序 ###
+```{r}
+# 按照票房降序排列
+movie = movie[order(movie$boxoffice, decreasing = T), ]; head(movie) 
+# 先按电影类型排序，再按照豆瓣评分排序
+movie = movie[order(movie$type, movie$doubanscore, decreasing = T), ]; head(movie)
+```
+### 6.变形--长宽表互换 ###
+
+```{r}
+
+# install.packages("reshape")
+library(reshape)
+# install.packages("reshape2")
+library(reshape2)
+## (1) 宽表变长表 ##
+mWide = data.frame(Name = c("熊大", "水妈"), Type = c("帅哥", "美女"),
+                   GF2013 = c(300, 100), GF2014 = c(500, 350), GF2015 = c(1000, 886))
+# 由于构造数据框时列名不可以为纯数字，在数字前添加GF
+# 将列名中的GF去掉
+colnames(mWide)[3:5] = gsub("GF", "", colnames(mWide)[3:5])
+mWide #查看原表
+(mLong = reshape::melt(mWide, id.vars = c("Name", "Type"), variable_name = "Year")) 
+# 将列Year从字符型变成数值型
+mLong$Year = as.numeric(mLong$Year)
+
+# 长表变宽表
+reshape2::dcast(mLong, Name + Type ~ Year)
+
+```
+### 7.R中的数据透视表-神奇的ddply ###
+
+Excel中，常用的功能是vlookup和数据透视表，在R中，ddply函数可以完成类似数据透视表的分组计算不同量的功能。
+```{r}
+# install.packages(plyr)
+library(plyr)
+# 根据电影类型进行分组，查看不同类型电影票房的平均水平
+popular_type = ddply(movie, .(type), function(x) {mean(x$boxoffice)}); head(popular_type)
+# 根据电影类型和电影时长同时分组，查看电影票房的平均水平
+long = ddply(movie, .(type,duration), function(x) {mean(x$index1)}); head(long)
+```
+##### 2.1 R中的数据类型 #####
+```{r}
+rm(list = ls())
+```
+#### 2.1.5 列表 ####
+### 1.创建 ###
+```{r}
+(example = list("abc", 3:5, matrix(1, nrow = 3, ncol = 4), data.frame(x = 1:4, y = paste0("boy_", 1:4))))
+
+### 2.基本操作 ###
+# 查看
+(complex = list(first = list(1:2), second = list(letters, list(matrix(1:4, nrow = 2, ncol = 2)))))
+```
+```{r}
+# 利用名字引用元素
+complex$first  
+ 
+# 利用序号引用元素
+complex[[1]]
+ 
+
+# 利用序号添加元素
+complex[[3]] = matrix(1, 2, 3); complex
+```
+```{r}
+# 利用名字添加元素
+complex$new = 1:5; complex
+```
+### 3.列表中的**ply函数 ###
+```{r}
+# 老王耗子药的单价,单位(元/袋)
+(price = list(year2014 = 36:33, year2015 = 32:35, year2016 = 30:27))
+
+# lapply返回列表
+lapply(price, mean)
+lapply(price, sd)
+lapply(price, quantile)
+# sapply默认返回向量或矩阵
+sapply(price, mean)
+ 
+sapply(price, sd)
+ 
+sapply(price, quantile)
+# mapply实现了将price与amount对应元素相乘的效果
+(amount = list(year2014 = rep(200, 4), year2015 = rep(100, 4), year2016 = rep(300, 4)))
+(income_quarter = mapply("*", price, amount))
+```
+```{r}
+# 练习题：总收入
+(income_year = mapply(function(x, y) {sum(x*y)}, price, amount))
+``` 
+
+### 4.list对象的其他快捷玩法 ###
+```{r}
+# do.call
+Sunday1 = data.frame("经度" = rep(39.95, 5), "纬度" = rep(116.3, 5), "地点" = rep("熊孩子玩耍基地", 5))
+Sunday2 = data.frame("经度" = rep(39.96, 5), "纬度" = rep(116.4, 5), "地点" = rep("论文生产基地", 5))
+Sunday3 = data.frame("经度" = rep(39.97, 5), "纬度" = rep(116.5, 5), "地点" = rep("工业实践基地", 5))
+(example = list(Sunday1, Sunday2, Sunday3))
+do.call(rbind, example)
+
+```
+## 参考文献
+
+朱雪宁，《R语言从数据思维到数据实战》，中国人民大学出版社，2019
+

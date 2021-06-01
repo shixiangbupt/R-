@@ -1,0 +1,266 @@
+---
+title: "共享单车租用频次分析"
+author: "周世祥"
+date: "2020/5/23"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 案例简介
+
+从2016年开始，国内共享单车突然火爆。摩拜，ofo，至少25个新的共享单车品牌入驻很多大城市，Kaggle中有一个关于共享单车的数据集。
+
+美国华盛顿共享单车的租赁量。数据集变量少，简单易懂。
+
+### 变量介绍
+
+```
+knitr包美化表格
+使用knitr包kable()函数，表格输出结果并不会随着屏幕大小而出现原始表格的情况。
+
+library(knitr)
+kable(data)
+```
+
+变量名    | 变量含义
+----------|------------
+datatime  | 日期时间
+season    | 季节
+holiday   | 是否为假期
+workingday|是否为工作日
+weather   | 天气
+temp      | 温度
+humidity  |湿度
+windspeed |风速
+count     |频次
+
+### 数据准备
+
+做好数据清洗，时间格式，分析汇总，绘图等常用的程序包。
+
+1、导入分析所需程序包
+
+```{r}
+library(Rmisc) # multiplot()
+library(tidyverse) # ggplot()
+library(data.table)
+library(corrplot)#corrplot.mixed()
+options(scipen=20)#避免绘图时使用科学计数法表示某个数值
+
+```
+### 查看数据集的基本结构
+
+根据str对导入的数据集结构进行简单探索。除了租用时间点是因子型，其他都是数值型。对datetime变量进行差分重塑，对weather/season两个变量进行数据的重编码。
+
+```{r}
+bike <- fread("./train.csv") #data.table包中的函数
+```
+
+```{r}
+str(bike)
+```
+
+查看到各个变量的最小数，最大数，中位数，均值，分位数等。发现最小的租赁次数是1次。
+
+```{r}
+summary(bike)
+```
+
+## 数据重塑
+
+查看season的取值
+```{r}
+table(bike$season)   
+table(bike$weather)   
+```
+修正取值
+
+```{r}
+bike$season <- factor(bike$season, labels = c("Spring", "Summer", "Fall", "Winter"))
+bike$weather <- factor(bike$weather, labels = c("Good", "Normal", "Bad", "Very Bad"))
+
+table(bike$season)
+table(bike$weather)
+```
+
+ 将变量日期时间转换为时间日期对象，之后再使用hour函数将日期时间中的小时数提取出来。
+
+```{r}
+library(lubridate)
+bike$hour <- lubridate::hour(ymd_hm(bike$datetime))
+```
+
+剔除casual和registered两列。
+
+```{r}
+bike <- bike[,-c(10, 11)] 
+head(bike)
+```
+
+## 柱状图在数据分析中的简单应用
+
+分析24小时，哪些时段处于单车租赁的高峰，低谷，运用dplyr包汇总分析函数结合ggplot2包的绘图函数，画条形图。
+
+```{r}
+
+bike %>%
+  group_by(hour) %>%
+  summarise(mcount = mean(count)) %>%
+  ggplot(aes(x = hour, y = mcount, fill = hour)) +
+  geom_bar(stat = 'identity') +
+  guides(fill = 'none') +
+  theme_minimal()
+```
+
+看到上午8到9点，下午17到19点是高峰期，上下班，说明上班族共享的租赁数多。
+
+再探索假期和工作日的评价租车频次。
+
+
+```{r}
+p8 <- bike %>%
+  group_by(holiday) %>%
+  summarise(mcount = mean(count)) %>%
+  ggplot(aes(x = factor(holiday), y = mcount, fill = factor(holiday))) +
+  geom_bar(stat = 'identity') +
+  guides(fill = 'none') +
+  labs(x = 'holiday') +
+  theme_minimal()
+
+
+# 探索是否工作日的平均租车频次
+p9 <- bike %>%
+  group_by(workingday) %>%
+  summarise(mcount = mean(count)) %>%
+  ggplot(aes(x = factor(workingday), y = mcount, fill = factor(workingday))) +
+  geom_bar(stat = 'identity') +
+  guides(fill = 'none') +
+  labs(x = 'workingday') +
+  theme_minimal()
+
+multiplot(p8, p9, cols = 2)
+```
+ 
+ 差距不大。
+ 
+ ## 柱状和扇形图在数据分析中的应用
+ 
+ 探索共享单车数据集可通过season变量内不同季节每小时租车次数的对比，来寻求不同季节租赁共享单车的每小时租车次数差异。
+
+```{r}
+p2 <- bike %>%
+  group_by(season) %>%
+  summarise(mcount = mean(count)) %>%
+  ggplot(aes(x = reorder(season, mcount), y = mcount, fill = season)) +
+  geom_bar(stat = 'identity') +
+  labs(x = 'senson', y = 'mcount') +
+  guides(fill = 'none') +
+  theme_minimal()
+
+p3 <- bike %>%
+  group_by(season) %>%
+  summarise(mcount = mean(count)) %>%
+  ggplot(aes(x = reorder(season, mcount), y = mcount, fill = season)) +
+  geom_bar(stat = 'identity', width = 1) +
+  coord_polar(theta = "y") +
+  labs(x = 'senson', y = 'mcount') +
+  guides(fill = 'none') +
+  theme_minimal()
+
+multiplot(p2, p3, cols = 2)
+```
+
+两种方式传达的意义是一样的。春天最少，秋天最多。
+
+将可视化变量更改为天气情况，使用条形图和极坐标图。
+
+```{r}
+p5 <- bike %>%
+  group_by(weather) %>%
+  summarise(mcount = mean(count)) %>%
+  ggplot(aes(x = reorder(weather, mcount), y = mcount, fill = weather)) +
+  geom_bar(stat = 'identity') +
+  labs(x = 'weather') +
+  guides(fill = 'none') +
+  theme_minimal()
+
+
+p6 <- bike %>%
+  group_by(weather) %>%
+  summarise(mcount = mean(count)) %>%
+  ggplot(aes(x = reorder(weather, mcount), y = mcount, fill = weather)) +
+  geom_bar(stat = 'identity', width = 1) +
+  coord_polar(theta = "y") +
+  labs(x = 'senson', y = 'mcount') +
+  guides(fill = 'none') +
+  theme_minimal()
+
+multiplot(p5, p6, cols = 2)
+```
+## 折线图在数据分析中的应用
+
+观察数据趋势，查看不同时段各个季节的租赁次数的趋势。
+
+```{r}
+bike %>%
+  group_by(season, hour) %>%
+  summarise(mcount = mean(count)) %>%
+  ggplot(aes(x = hour, y = mcount, group = season, shape= season, linetype = season)) +
+  geom_line() +
+  theme_bw() +
+  geom_point()
+
+```
+
+将变量改为天气情况，以相同的折线图可视化该变量。
+
+```{r}
+bike %>%
+  group_by(weather, hour) %>%
+  summarise(mcount = mean(count)) %>%
+  ggplot(aes(x = hour, y = mcount, group = weather, shape= weather,linetype = weather)) +
+  geom_line(aes(group = weather)) +
+  theme_bw() +
+  geom_point()
+
+```
+
+探索不同工作日不同时间段的平均租车频次。
+
+```{r}
+bike %>%
+  group_by(holiday, hour) %>%
+  summarise(mcount = mean(count)) %>%
+  mutate(Holiday = as.factor(holiday)) %>%
+  ggplot(aes(x = hour, y = mcount, group  = Holiday, shape = Holiday )) +
+  geom_line(aes(group = factor(holiday))) +
+  geom_point() +
+  theme_bw()
+
+```
+
+可见高峰期在13点左右和18点左右，8点左右的租车频次降低了很多。非假期0时租车高峰期就是8点左右和18点左右，即上班族的上下班高峰期。
+
+## 相关系数图综合分析
+
+变量之间的相关性，帮助用户确认下一步的分析方向。
+
+用baseR包中的cor函数，可视化用corrplot.mixed。
+
+```{r}
+
+cor(bike[,c(6:9, 10)]) %>%
+  corrplot.mixed()
+```
+
+发现temp和atemp的相关系数到达惊人的0.98.最后一行发现，频次与温度呈弱的正相关，与湿度humidity呈较弱的负相关。与风速几乎不相关。温度，湿度，风速不会对租车频次产生较大的影响。
+
+## 参考文献
+
+刘健等，R数据科学实战工具详解与案例分析，机械工业出版社，2019年7月
+

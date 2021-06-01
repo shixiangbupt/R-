@@ -1,0 +1,550 @@
+---
+title: "数据汇总操作"
+author: "周世祥"
+date: "2020/3/31"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 数据汇总
+
+也称作数据透视，数据提炼等。
+
+### apply函数家族
+apply()函数族是R语言中数据处理的一组核心函数，可以实现对数据的循环，分组，过滤，类型控制等操作。
+
+```
+apply(x,Margin,fun,...)
+x表示数据，Margin为1时表示按行进行迭代，fun定义调用函数。
+
+```
+就是说apply把一个function作用到array或者matrix的margins（可以理解为数组的每一行或者每一列）中，返回值时vector、array、list。
+
+简单的说，apply函数经常用来计算矩阵中行或列的均值、和值的函数，具体方法如下：
+
+定义一个3×2的矩阵：
+```{r}
+rname = c("one","two","three")
+cname = c("first","second")
+b <- matrix(1:6,nrow=3, dimnames = list(rname, cname))
+
+```
+继续举几个例子：
+
+
+上面的指令代表对矩阵b进行行计算，分别对每一行进行求和。函数涉及了三个参数：
+
+第一个参数是指要参与计算的矩阵；
+
+第二个参数是指按行计算还是按列计算，1——表示按行计算，2——按列计算；
+
+第三个参数是指具体的运算参数。
+
+上述指令的返回结果为：
+```{r}
+apply(b,1,sum)
+```
+再看一个稍微复杂的例子：对于apply()函数的第三个参数，制定了具体用什么函数进行计算，之前例子里使用的都是sum，对于用户自定义的函数同样可以在这里使用。
+
+通常情况大家使用apply之后是需要把apply的返回值作为输入在其他代码中使用的，这里尤其重要的一点是apply的返回值的维度。上面的例子就算每一行或者每一列的sum，使用apply之后，返回都是一个向量，并不会因为apply计算行（列）的sum就会自动返回一个列（行）向量。
+
+ ```{r}
+ #定义数据框x   
+x <- data.frame(v1 = seq(from=1,to=9,by=2), v2 = c(5:1)) 
+x
+
+#自定义函数myFUN:
+#第一个参数x为需要作用的数据，第二个（及以后的）参数为自定义参数
+myFUN<- function(x, c1, c2) { c(x[c1]*2, sum(x[c2]))}
+ ```
+```{r}
+#对数据框使用apply函数按行做循环，每行分别传递给myFUN函数。
+#设置c1,c2对应myFUN的第二、三个参数
+apply(x,1,myFUN,c1='v1',c2=c('v1','v2'))
+```
+自定义的myfun函数实现了一个常用的循环结束。
+
+
+必须用到循环时，可以选择使用apply函数，应尽量显式调用for，while循环，以免耗时太长。直接使用R内置的向量计算会更快。
+
+### lapply函数
+最基础的循环操作函数之一。对列表对象X进行循环，并返回和X长度同样的列表。如果X为向量，会自动通过as.list()函数将其转换为list类型。
+
+```{r}
+x <- list(a0 = rnorm(n=5,mean=0,sd=1), b0 = c(TRUE,FALSE,FALSE),
+          c0 =seq(from=1, to=4,length=8) )
+lapply(x,mean)
+```
+如果x为矩阵对象，lappy不会按列求和：
+
+```{r}
+#产生矩阵x 
+x <- cbind(v1=2, v2=c(1:4)); x
+class(x) #查看x的类型
+lapply(x, sum) #使用lapply函数对矩阵的列求和
+```
+此时我们应该，先把x转为数据框
+```{r}
+lapply(data.frame(x), sum)
+```
+相比于apply，lapply返回的是列表，因此应用范围会更广。
+
+### sapply函数
+即简化的lappy函数，是lappy函数特殊形式，返回值不再是列表，而是向量。
+```{r}
+sapply(iris[,1:4], mean)
+```
+如果参数simplify=array则输出结果按数组进行分组。
+simplify=TRUE逻辑值，则返回值为向量，FALSE时返回列表。
+
+### vapply函数
+类似于sapply函数，提供了FUN.VALUE参数，控制返回值的行名，对返回值类型进行检查，运算更安全。
+
+```{r}
+#生成数据框
+x <- data.frame(cbind(v1=2, v2=c(1:4))); x
+#累计求和并设置行名，4行分别为a,b,c,d
+vapply(x,cumsum,FUN.VALUE=c('a'=0,'b'=0,'c'=0,'d'=0)) #此处的0表示定义返回值的类型是数值型
+```
+当不设置行名时，默认的索引值。
+```{r}
+out<-sapply(x,cumsum); out
+```
+### mapply函数
+使某些不具备向量化的函数变得向量化。比如循环时不能向量化的问题，可以用此函数解决。
+```{r}
+myfun <- function(x,y){
+  if(x>4) return(y)
+  else return(x+y)
+}
+#新建一个自定义函数，当x满足大于4的条件时，返回y的值，否则返回x+y的值。
+
+a <- c(2:6)
+b <- c(4:9)
+myfun(a,b)
+```
+ifelse语句中显然x>4不能向量化。
+此时可以借助mapply函数。
+```{r}
+mapply(myfun, a, b)
+```
+### tapply函数
+用于分组的循环计算，通过INDEX参数，可以把数据集X进行分组，相当于group by的操作。
+```{r}
+tapply(iris$Sepal.Length, iris$Species, mean)
+```
+利用分类变量Species，对数据集进行切分，然后计算不同因子水平下，变量Sepal.Length的平均值。
+
+下面随机生成一个数据框，包含10个观测值，3个变量，id是每一个患者标识，cancer表示所患癌症的类型，肺癌，肝癌，直肠癌。sur_days表示生存时间。现计算不同类型的肿瘤患者的平均生存时间。
+```{r}
+survival <- data.frame(id = 1:10, cancer = sample(c('lung','liver','colon'), 
+                                                  10, replace = TRUE), sur_days = sample(100:1000, 10))
+survival
+tapply(survival$sur_days, survival$cancer, mean)
+```
+再假设在survival数据集上再添加一个新的分类变量：即治疗手段 ，分手术和化疗两种，现在想知道不同癌症的病人接受不同治疗手段后，平均生存时间。
+```{r}
+survival$treatment <- sample(c('Surg','Chemo'), 10, replace = TRUE)
+survival
+tapply(survival$sur_days, list(survival$cancer, survival$treatment), mean)
+```
+上述案例在参数INDEX即因子变量中传入了两个分类变量，对生存时间进行均值计算。多个分类变量放入list()函数连起来。
+代码也可以写成：
+```{r}
+tapply(survival$sur_days, survival[c('cancer','treatment')], mean)
+```
+ rapply函数是递归版本的lapply函数，只处理list类型数据，对每个元素进行递归遍历。
+
+### 函数table（求因子出现的频数）
+使用格式为：
+```
+table(..., exclude = if (useNA == "no") c(NA, NaN), useNA = c("no", "ifany", "always"), dnn = list.names(...), deparse.level = 1)
+```
+其中参数exclude表示哪些因子不计算。
+示例代码：
+```{r}
+  d <- factor(rep(c("A","B","C"), 5),levels=c("A","B","C","D","E"))
+  d
+  table(d)
+  table(d, exclude="B")
+ 
+```
+ lapply()和sapply()只能应用在二维数据结构，例如列表的元素，数据框的变量，而且并不需要指定维度。lappy()是最基本的原型函数，不妨知道它是R语言最简单的泛函，仅此而已。lapply()，sapply()和vapply()的两个主要参数是data和f()。data的数据类型是列表或向量，函数对所有列表元素、数据框变量应用f()函数。 lapply()返回的结果是列表，长度与data相同，sapply()返回的结果是向量，矩阵或数组，结果需要做预测。而vapply()函数将对返回结果的值进行类型检查，参数FUN.VALUE设置返回值类型，因此vapply()是结果可预测的sapply()版。所以不可在函数内部用sapply()，而应使用vapply()。lapply()和sapply()可实现数据结构操作的大多数功能，包括创建数据结构、取子集等，然而这并不是它们的优势。
+ 
+ 
+### aggregate函数
+分类汇总函数，将数据按照某个变量进行分组，然后对每一组数据进行函数统计，最后把结果组合成一个比较整洁的形式返回。
+
+作用对象为数据框。
+```{r}
+#导入mtcars数据集
+data(mtcars)
+
+#查看mtcars数据集的基本信息
+str(mtcars)
+```
+mtcars数据集包含32个观测值，11个变量
+用attach函数把当前R环境切换到mtcars数据集中。
+```{r}
+attach(mtcars)
+#按cyl变量对数据进行分组，并计算各组中变量的均值
+aggregate(mtcars,by=list(cyl),FUN=mean)
+```
+与tapply函数参数有些类似。不同之处在于aggregate可以作用于数据集中的所有变量。
+用by的list参数，对多个因子变量，按因子组合进行切分。
+```{r}
+aggregate(mtcars,by=list(cyl,gear),FUN=mean)
+```
+```{r}
+detach(mtcars)
+```
+返回全局变量。
+
+## plyr包
+
+理念是“拆分，处理，合并”。将一个大的数据框，拆分成几个小的数据集，然后依次处理，最后将处理得到的结果再合并成一个完整的数据框。
+## dplyr包
+用于数据清洗和整理的R语言扩展包，此包将plyr包中的ddply函数进一步分离强化，专注接受data.frame对象，大幅提高速度。
+
+工作中的数据分析或挖掘任务都需要进行各种各样的数据预处理，包括数据整合、关联、排序、筛选等。下面将介绍强大的dplyr包，其可以非常灵活、快速的实现数据的预处理。
+
+>select(): 按列变量选择  
+filter(): 按行名称分片  
+slice(): 按行索引分片  
+mutate(): 在原数据集最后一列追加一些数据集  
+summarise(): 每组聚合为一个小数量的汇总统计，通常结合gruop_by()使用  
+arrange(): 按行排序
+
+
+tbl_df()函数用于将过长过大的数据集转换为显示更友好的tbl_df类型。使用dplyr包预处理时建议使用tbl_df()函数或tbl_cube()函数或tbl_sql()函数将原数据转换为tbl对象，因为dplyr包用C语言开发，对处理tbl对象是非常迅速的。
+
+```{r}
+#首先要安装并载入这个dplyr包
+library(dplyr) 
+#查看mtcars的数据类型 
+class(mtcars)
+mtcars_df<- tbl_df(mtcars)
+```
+```{r}
+#查看数据集mtcars_df的结构（有哪些变量，每个变量的类型等等）
+str(mtcars_df) 
+
+```
+
+filter()函数，与subset()函数类似，按给定的逻辑条件筛选出符合要求的子数据集。
+
+如果需要将数据集中的某些观测进行筛选的话，可以使用filter()函数，语法如下：
+
+filter(.data, ...)
+
+.data为tbl对象
+
+...为观测筛选条件，类似于subset()函数中的用法，但不同的是filter()函数不能筛选某些变量。
+
+
+```{r}
+unique(mtcars_df$gear)
+
+```
+```{r}
+#过滤出gear == 4的行
+filter(mtcars_df, gear == 4)
+```
+```
+#过滤出drat<3的行
+filter(mtcars_df, drat<3)
+
+#过滤出cyl < 6 并且 gear == 4的行
+filter(mtcars_df, cyl < 6 & gear == 4)
+
+#如下命令也能得到相同的结果
+filter(mtcars_df, cyl < 6, gear == 4)
+
+#过滤出cyl== 6或者carb > 5的行
+filter(mtcars_df, cyl== 6 |carb > 5)
+
+#过滤出carb为2或4的行
+filter(mtcars_df, carb %in% c(2, 4))
+
+#过滤出carb为2或4的行
+filter(mtcars_df, carb %in% c(2, 4))
+```
+slice()函数：
+
+主要用于选出特定的几行数据，与Python语言的数据切片类似。
+
+```{r}
+ 
+#Sys.setlocale('LC_ALL','C')
+#或者使用filter函数，也能达到同样的目的：
+filter(mtcars_df, row_number() == 3L)
+
+```
+
+```{r}
+#选取最后一行数据
+slice(mtcars_df, n())
+```
+#变量选取
+
+filter()函数只能将指定条件的观测筛选出来，并不能筛选出只关心的变量，为了弥补这个缺陷，可以使用select()函数筛选指定的变量，而且比subset()函数更灵活，而且选择变量的同时也可以重新命名变量。如果剔除某些变量的话，只需在变量前加上负号“-”。之所以说他比subset()函数灵活，是因为可以在select()函数传递如下参数：
+```
+starts_with(x, ignor.case = TRUE)#选择以字符x开头的变量
+
+ends_with(x, ignor.case = TRUE)#选择以字符x结尾的变量
+
+contains(x, ignor.case = TRUE)#选择所有包含x的变量
+
+matches(x, ignor.case = TRUE)#选择匹配正则表达式的变量
+
+num_range('x', 1:5, width = 2)#选择x01到x05的变量
+
+one_of('x','y','z')#选择包含在声明变量中的
+
+everything()#选择所有变量，一般调整数据集中变量顺序时使用
+```
+数据排序
+
+数据预处理过程中往往也需要按某些变量进行排序，dplyr包提供了非常便捷的arrange()函数实现排序功能，语法如下：
+
+ 语法 ：arrange(.data, ...)
+arrange(.data, ...)
+
+arrange()函数默认以某个变量进行升序，如需降序则desc(var_name)即可。
+
+
+ arrange()按给定的列名依次对行进行排序，类似于base::order()函数。默认是按照升序排序，对列名加 desc() 可实现倒序排序。原数据集行名称会被过滤掉。
+
+arrange(df2tbl, y) #默认升序
+
+arrange(df2tbl, desc(y)) #降序操作
+
+举例1：
+
+
+#以cyl和disp联合升序排序
+arrange(mtcars, cyl, disp)
+#以disp降序排序
+arrange(mtcars, desc(disp))
+ 
+
+
+
+数据扩展
+
+通过mulate()函数--变形函数可以在原始数据集的基础上扩展新变量，类似于transform()函数，语法如下：
+
+mutate(.data, ...)
+
+例子：
+
+mutate(df2tbl, z = y^2 + y - 10)
+
+同样可以进行数据扩展的还有transmute()函数，与mutate()函数不同的是，该函数扩展新变量的同时，将删除所有原始变量。
+
+例子：
+
+transmute(df2tbl, z = y^2 + y - 10)
+
+管道函数
+
+这里介绍一种dplyr包中特有的管道函数，即通过%>%将上一个函数的输出作为下一个函数的输入。
+
+例子：根据数据集df2tbl和df2tbl2，取出z变量对应的最大y值
+
+inner_join(x = df2tbl, y = df2tbl2, by = 'x') %>% group_by(., z) %>% summarize(., max(y))
+
+###  去重: distinct
+ distinct()用于对输入的tbl进行去重，返回无重复的行，类似于 base::unique() 函数，但是处理速度更快。原数据集行名称会被过滤掉。
+
+ 语法 ：distinct(.data, ..., .keep_all = FALSE)
+
+ 举例 1：
+
+```
+df <- data.frame(
+  x = sample(10, 100, rep = TRUE),
+  y = sample(10, 100, rep = TRUE)
+)
+#以全部两个变量去重，返回去重后的行数
+nrow(distinct(df))
+nrow(distinct(df, x, y))
+#以变量x去重，只返回去重后的x值
+distinct(df, x)
+#以变量y去重，只返回去重后的y值
+distinct(df, y)
+#以变量x去重，返回所有变量
+distinct(df, x, .keep_all = TRUE)
+#以变量y去重，返回所有变量
+distinct(df, y, .keep_all = TRUE)
+#对变量运算后的结果去重
+distinct(df, diff = abs(x - y))
+ 
+ 
+ ```
+
+
+### sample()函数
+数据集抽样，sample_n()用于随机抽取指定书目的样本，原数据集行名称会被过滤掉；sample_frac()用于随机抽取指定百分比的样本，原数据集的行名会被保留。
+默认都为不放回抽样。
+
+```{r}
+#sample_n函数的例子
+set.seed(1)
+
+#随机无重复的取15行数据
+sample_n(mtcars_df,15)
+
+#随机有重复的取100行数据
+sample_n(mtcars_df, 100, replace = TRUE)
+
+#随机无重复的以 qsec值做权重抽取5行数据。如果某一行数据其对应的qsec值越大，那这一行数据被抽中的可能性也会越大
+sample_n(mtcars_df, 5, weight =  qsec)
+
+#sample_frac函数的例子
+set.seed(1)
+
+#默认size=1，相当于对全部数据无重复重新抽样
+sample_frac(mtcars)
+
+#随机无重复的取30%的数据
+sample_frac(mtcars_df, 0.3) 
+#随机有重复的取总行数1.2倍的数据
+sample_frac(mtcars_df, 1.2, replace = TRUE)
+
+#随机无重复的以1/qsec值做权重取30%的数据
+sample_frac(mtcars_df, 0.3, weight = 1/qsec)
+
+```
+### group_by()函数
+对数据集按照给定变量分组，返回分组后的数据集。该函数不会显式地返回切分后的数据集。
+```
+#使用变量gear对mtcars分组，返回分组后数据集。但是此时的by_gear数据集的结构与原始的mtcars_df相同。
+by_gear <- group_by(mtcars_df, gear)
+
+#返回每个分组中最大qsec所在的行
+filter(by_gear, qsec == max(qsec))
+
+#返回每个分组中变量名包含d的列，始终返回分组列gear
+select(by_gear, contains("d"))
+
+#使用qsec对每个分组排序
+arrange(by_gear,  qsec)
+
+#对每个分组无重复的取3行记录
+sample_n(by_gear, 3)
+
+#返回每个分组的记录数
+summarise(by_gear, n())
+
+#求每个分组中disp和hp的均值
+summarise(by_gear, mean(disp), mean(hp))
+
+#返回每个分组中disp第二个值（不是第二大的值）
+summarise(by_gear, nth(disp,2))
+
+```
+### %>% 连接符
+是tidyverse数据流中常用的一个连接符，方便了代码的书写，使得数据整理流程变得更加流畅，代码可读性强。
+原则是：以上一个函数的输出，作为下一个函数的第一个参数。“管道符”。
+```{r}
+library(dplyr)
+library(nycflights13)
+result <- flights %>%
+  #将flights数据集传给下面的group_by函数
+  group_by(year, month, day) %>%
+  select(arr_delay, dep_delay) %>%
+  summarise(
+    arr = mean(arr_delay, na.rm = TRUE),
+    dep = mean(dep_delay, na.rm = TRUE)
+  ) %>%
+  filter(arr > 30 | dep > 30)
+head(result)
+```
+R 数据集 nycflights13::flights 各列含义说明(详细内容可以安装 nycflights13 包并加载 flights 后 ?flights 查看):
+
+```
+year、month、day：起飞日期
+dep_time、arr_time：起飞（departure）时间和到达时间。格式：HHMM，当地时间。
+sched_dep_time、sched_arr_time：计划起飞时间、计划到达时间
+dep_delay、arr_delay：起飞延误、到达延误
+hour、minute：计划起飞时间拆分为 hour 和 minute
+carrier：承运商缩写
+tailnum：飞机尾号
+origin、dest：始发地、目的地
+airtime：空中时间
+distance：机场间距
+
+```
+
+
+
+
+上述代码的复杂版是：
+```
+a1 <- group_by(flights, year, month, day)
+a2 <- select(a1, arr_delay, dep_delay)
+a3 <- summarise(a2,
+                arr = mean(arr_delay, na.rm = TRUE),
+                dep = mean(dep_delay, na.rm = TRUE))
+a4 <- filter(a3, arr > 30 | dep > 30)
+```
+### 分割-应用-整合
+
+拿我们的 iris 数据来说, 如果我想要知道每个物种的每一种属性的均值, 就可以使用 group_by 和 summarize 函数来获得.
+
+```{r}
+iris %>% group_by(Species)  %>%
+      summarize(
+         Sepal.Width=mean(Sepal.Width),
+         Sepal.Length=mean(Sepal.Length),
+         Petal.Length=mean(Petal.Length),
+         Petal.Width=mean(Petal.Width) ) 
+
+```
+```
+同样, 也有众多的函数可以用于 summarize 函数.
+
+mean(), median(), max(), min(), sd(),
+IQR(), mad() 等统计函数.
+first(), last(), nth(): 返回第几位的值.
+n(): 计算数据的数量, 相当于 length() 函数.
+n_distinct(): 计算非重复数据的数量, 相当于 length(unique(x)).
+any(), all(): 逻辑计算函数.
+
+```
+排序
+在分析的时候需要对数据进行排序, dplyr 提供了 arrange 函数. 例如我们按照 Petal.Width 对数据进行从小到大排序.
+```{r}
+iris %>% arrange(Petal.Width) 
+```
+配合 desc 函数可以实现从大到小排序.
+```{r}
+iris %>% arrange(desc(Petal.Length), Petal.Width)
+ #   Sepal.Length Sepal.Width Petal.Length Petal.Width   Species
+```
+
+
+ 
+## 参考文献
+  
+【1】R语言与数据分析实战 徐珉久，武传海著，人民邮电出版社
+
+【2】第三章第一节 apply族函数 http://rsoftware.h.baike.com/article-2015511.html
+
+【3】R语言中的lapply sapply apply tapply mapply http://iccm.cc/lapply-sapply-apply-tapply-mapply-in-r-language/
+
+【4】R中的apply族函数 https://zhuanlan.zhihu.com/p/26466130
+
+【5】R语言︱数据分组统计函数族——apply族用法与心得: https://blog.csdn.net/sinat_26917383/article/details/51086663
+
+【6】掌握R语言中的apply函数族 http://blog.fens.me/r-apply/
+
+ 【7】 R语言与数据清洗，陈兴栋等，人民卫生出版社，2019年4月
+ 
+【8】 https://blog.csdn.net/wltom1985/java/article/details/54973811
+
+【9】 https://blog.csdn.net/u013421629/java/article/details/79413702 

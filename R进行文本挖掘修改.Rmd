@@ -1,0 +1,263 @@
+---
+title: "R爬虫及进行文本挖掘"
+author: "周世祥"
+date: "2020/3/22"
+CJKmainfont: Microsoft YaHei
+output:
+  html_document: default
+  pdf_document:
+    includes:
+       in_header: header.tex
+    keep_tex: yes 
+    latex_engine: xelatex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## 数据获取方式
+
+大数据时代，最不缺的是数据，数据就是黄金，就是石油，可是作为个人来说，获取数据并不容易，特别是有价值的数据。这个时候，爬虫就开始行动了，所谓的爬虫就是我们用编程语言写的程序，能够不知疲倦地替我们去广阔的互联网上替我们搜寻信息。你到一个陌生的地方，想找一个便宜的房子，从网上一个一个页面去搜索，太慢了，效率低。你想研究新冠病毒的发病模型，数据哪儿来，写个爬虫就替你做了。
+
+如果你学过Python，一定听说过大名鼎鼎的爬虫框架--scrapy
+![https://baike.baidu.com/item/scrapy/7914913?fr=aladdin].
+
+框架的好处是方便，安装好了就可以用，代码量少，效率高，不好的地方就是灵活性不够，有些地方对用户来说不透明。对一些项目来说，我们用R的几行代码就可以自动化地采集数据。
+
+当然学习爬虫需要先明确一些概念，比如，Http协议，静态网页和动态网页，json格式，selenium自动化测试。
+
+### 静态页面和动态页面
+
+静态页面并不是指没有动态效果的网页，现在的H5中JavaScript已经能做出漂亮的动画效果，静态网页指的是HTML网页在我们客户端请求时候已经客观存在于网页服务器上了。
+
+动态网页是指在收到请求的时候，根据请求用服务器程序(PHP,JSP ,ASPX)“动态”地生成HTML网页。比如，你上教务系统上查看自己的成绩，你只能看到自己的信息，你看到的网页和别人不一样。你用百度地图导航时，随着位置不同，地图需要不断更新。动态页面说到底，需要后台数据库服务器支持，数据必须不断更新。
+
+尽管H5前端编程工资待遇不错的，然而只会前端，知识面太窄，很容易被淘汰的，所以现在有些机构美其名曰，全栈工程师，就是加上一些后端的编程技术进行补充。
+
+H5的流行是有道理的，在这个云时代，我们要转变思想了，不需要买强劲的服务器，阿里云，腾讯云，华为云都提供云服务，我们个人只需有一个终端就可以，这个终端可以是笔记本，手机等轻终端，我们可以把软件或应用部署在云上，终端上只需安装一个web容器就可以，这个容器就是浏览器，想想微软为什么要把ie集成到操作系统，就知道浏览器是互联网的入口。web发展到现在，你可以感觉到，单机版的软件没有出路，PC端的软件越来越少，连一个驱动精灵，替我们安装电脑驱动的软件都有web版了。现在我们上网课，数不清的在线直播平台，功能越来越强大。这里说马化腾引以为傲的微信，腾讯的核心产品，是一种不需要下载安装即可使用的应用，它实现了应用“触手可及”的梦想，用户扫一扫或搜一下即可打开应用。
+
+web的流行可见是有历史原因的。
+
+### web页面的构成
+web其实就是HTML文件，HTML文件由三部分组成：内容是什么，HTML脚本，描述怎么样，即CSS样式，动作行为，即JavaScript。
+JavaScript对HTML，CSS进行操纵(增、删、改、查)。
+
+如果程序能解析HTML结构就能控制页面，从而爬取相关的信息。
+
+### DOM的结构
+
+DOM文档对象模型[https://baike.baidu.com/item/DOM%E5%AF%B9%E8%B1%A1/6621083?fr=aladdin]，是W3C组织推荐的处理可扩展标记语言的标准编程接口。前面讲到web页面由各种层次的标签元素构成的，随便找来一个页面源代码，你会看到最上层有一个html，里面会有head,title等等标签，从数据结构上看，总体上看是一个树形结构，实际上，见过markdown，latex，你了解到他们都是标记语言，结构都是类似的。这些结构不想我们的矩阵或excel表格那么工整，它们都是非结构化的数据，所以想提取信息，需要费点功夫的。
+
+推荐一本好书《细说DOM编程》，兄弟连出品的，兄弟连在线机构，可惜在这次病毒流行中没能坚持住，倒闭了。
+
+### JSON
+
+JSON是什么，我们从网上收集的数据大多是JSON格式，特别是通过API方式，你可以把JSON理解为一个格式化好的数据。
+R语言中先安装JSON包。
+
+```
+install.packages("J:/R课件/rjson_0.2.20.zip", repos = NULL, type = "win.binary")
+```
+```{r}
+setwd('J:/R课件')
+library(rjson) #加载rjson包
+result<- fromJSON(file="input.json") #这个文件提前下载好
+print(result)
+json_data_frame<- as.data.frame(result)
+# R语言的数据框是它的创新
+print(json_data_frame)
+```
+我们看到json格式有点像Python中的字典，可以参考网站https://www.runoob.com/json/json-tutorial.html。
+
+
+
+### Xpath和正则表达式
+Xpath即XML路径语言，是一种用来确定XML文档中的某部分位置的语言，XML文档是前面讲的HTML等超集。Xpath基于XML的树状结构，提供在数据结构树中找寻节点的能力。可以当作小型的查询语言。R语言的XML包基于Xpath提供许多功能函数,https://www.runoob.com/xpath/xpath-tutorial.html。
+
+正则表达式用来检索某个模式的文本，R语言的XML包基于正则表示式提供了grep(),sub(),regexpr()等功能函数，进行字符串的模式匹配和索引工作。每一种语言都有正则表达式操作语法。
+
+获取静态web内容主要使用RCurl，XML包。RCurl包封装了HTTP协议接口，实现了HTTP的功能。本质上理解成一个命令行形式的浏览器。
+
+下面我们用R的包RCurl不打开浏览器，从网上下载信息。
+```{r}
+library("RCurl")
+url.exists(url="www.baidu.com")  #判断URL是否存在
+h<- basicHeaderGatherer()
+ 
+ 
+txt<-getURL(url="http://www.baidu.com",headerfunction=h$update)
+names(h$value)
+
+h$value()
+
+```
+上面的代码功能很简单，实现了查看服务器返回的头信息。
+
+### 实现单页爬虫
+
+![xpath查看](J:\\R课件\\xpathDangdang.jpg) 
+
+按浏览器的F12功能键进行调试。
+
+#实现单页爬虫功能
+```{r}
+library("RCurl")
+library ("XML")
+
+url.exists(url<-"http://search.dangdang.com/?key=统计&act=input&page_index=1")
+myheader<-c("User-Agent"="Mozilla/5.0 (iPhone; U; CPU iPhone OS 4_0_1 like MacOS X; ja-jp)AppleWebKit/532.9 (KHTML, like Gecko) Version/4.0.5 Mobile/8A306 Safari/6531.22.7",
+"Accept"="text/html,application/xhtml+xml,appication/xml;q=0.9,*/*;q=0.8",
+"Accept-Language"="en-us",
+"Connection"="keep-alive",
+"Accept-Charset"="GB2312,utf-8;q=0.7, *;q=0.7")
+
+#这个地方是假装是有钱人，用苹果手机查看当当网信息，不容易被当当封网
+
+webpage=getURL( url,httpheader=myheader, .encoding="GB2312") #RCurl包的getURL()函数读取URL对应的文件为字符串
+
+mode(webpage) #webpage 是个字符串
+
+temp=iconv(webpage,"GB2312", "UTF-8")#将编码转换为UTF-8
+
+write.table(temp,"temp.txt")# 输出一下temp,中文没有乱码，可以进行下一步工作
+
+pagetree=htmlTreeParse(temp,encoding="UTF-8",error=function(...){},useInternalNodes=TRUE,trim=TRUE)
+
+#XML包的htrePar方法对HTML内容进行解析
+
+mode(pagetree) #pagetree 是R内部使用的externalptr类型
+
+name0 <- xpathSApply(pagetree,"//*/a[@title]",xmlValue) #XML包的getNodeSet()函数以DOM对HTML文档进行检索
+
+name<- name0[grep("统计",name0)]#挖掘图书名
+
+name<-name[1:60]#发现有两个书没有价格
+
+#对HTML文档进行检索
+
+comment<-xpathSApply(pagetree,"//*/a[@name='itemlist-review']",xmlValue)#挖掘点评数量
+
+now_price<- xpathSApply(pagetree,"//*/span[@class='search_now_price']",xmlValue)#挖掘图书现价
+
+statistics <-data.frame(name, comment, now_price)
+write.csv(statistics, "J:\\R课件\\统计学.csv")
+```
+
+![xpath查看](J:\\R课件\\tongjixue.jpg)
+
+下一步可以用正则表达式去掉评论中文本，只留下数值，价格中的人民币符号，只留下价格。然后做数据分析。
+
+这只是从当当单页中收取60个商品的信息。研究当当网页变化规律，就可以修改程序连续爬取多页信息.
+
+### 网络数据的应用级API采集(以豆瓣为例)
+
+ API是Application Programming Interface的缩写。具体而言，就是某个网站，有不断积累和变化的数据。这些数据如果整理出来，不仅耗时，而且占地方，况且刚刚整理好就有过期的危险。大部分人需要的数据，其实都只是其中的一小部分，时效性的要求却可能很强。因此整理储存，并且提供给大众下载，是并不经济划算的。
+
+可是如果不能以某种方式把数据开放出来，又会面对无数爬虫的骚扰。这会给网站的正常运行带来很多烦恼。折中的办法，就是网站主动提供一个通道。当你需要某一部分数据的时候，虽然没有现成的数据集，却只需要利用这个通道，描述你自己想要的数据，然后网站审核（一般是自动化的，瞬间完成）之后，认为可以给你，就立刻把你明确索要的数据发送过来。双方皆大欢喜。
+
+今后你找数据的时候，也不妨先看看目标网站是否提供了API，以避免做无用功。
+
+应用级(非数据库级)API是软件或网站平台的开发方提供的数据查询通道，为了使用API首先要查阅API的帮助文档(通常还需要注册开发者账号)。以豆瓣为例，其API帮助文档的官方网址为: https://developers.douban.com/wiki/?title=guide.
+    
+  简单浏览API帮助，发现即使不注册开发者账号，也可以借助豆瓣API采集到想要的数据，例如在浏览器中输入https://api.douban.com/v2/book/1220562.
+  
+  即可返回编号为1220562的图书信息(JSON格式)。显然通过RCurl包可以以程序方式实现这个步骤，然后借助rjson包解析JSON格式的数据，即可获得我们想要的豆瓣网信息。这就是解决问题的关键思路。
+  
+  还比如说从中国天气网api上：www.weather.com.cn 的获取天气信息。
+  
+
+```{r}
+Sys.setlocale(locale="Chinese")
+library("RCurl")
+library("rjson")
+url="https://api.douban.com/v2/book/20429677?apikey=0df993c66c0c636e29ecbb5344252a4a"
+
+# 此处需要加apikey，豆瓣疑下线所有公开 API，所有请求都会报 msg:"invalid_apikey"，通过 imdb 号查豆瓣信息，这个需要研究研究
+
+library(httr)#它类似于Python中的request软件包，类似于Web浏览器，可以完成和远端服务器的沟通。
+response <-GET(url, user_agent="my@email.com this is a test")
+
+#注意其中的status一项。我们看到它的返回值为200。以2开头的状态编码是最好的结果，意味着一切顺利；如果状态值的开头是数字4或者5，那就有问题了，你需要排查错误。
+library(jsonlite)
+toJSON(fromJSON(content(response, as="text")), pretty = TRUE)
+#因为我们知道返回的内容是JSON格式，所以我们加载jsonlite软件包，以便用清晰的格式把内容打印出来。
+#我们把这个JSON内容存储起来。
+
+result <- fromJSON(content(response, as="text"))
+
+# Sys.setlocale('LC_ALL','Chinese')
+# wp <- readLines(url,warn="F") #下载JSON页面,这一行有错误啊！！！
+# ps <- fromJSON(wp)
+# title<-ps$title
+# publisher<-ps$publisher
+# isbn10<-ps$isbn10
+# price<-ps$price
+# catalog<-ps$catalog
+# avgRate<-ps[["rating"]]$average
+# result<-c(title, publisher, isbn10, price, avgRate, catalog)
+# names(result)<-c("title", "publisher", "isbn10", "price", "avgRate","catalog")
+# result
+
+# fileConn<-file("output.txt")
+# writeLines(c("Hello","World"), fileConn)
+# close(fileConn)
+#write(result, file="图书信息.txt")
+#-------write functions --------
+##book information extraction
+# dbook<- function(bookid){ 
+# url=paste0("https://api.douban.com/v2/book/", paste(bookid))
+# wp <- readLines(url, warn="F")
+# Ps <- fromJSON(wp)
+# title<-ps$title
+# publisher<-ps$publisher
+# isbn10<-ps$isbn10
+# price<-ps$price
+# catalog<-ps$catalog
+# avgRate<-ps[["rating"]]$average
+# result<-c(title, publisher, isbn10, price, avgRate, catalog)
+# names(result)<-c("title", "publisher", "isbn10", "price", "avgRate", "catalog")
+# write(result, file="图书信息.txt")
+# return (result)
+# }
+# dbook(20429677)
+```
+
+ 我们借助R语言程序正确地收集到了豆瓣网上我们感兴趣的信息。进步阅读 API手册发现，更高级的采集功能必须注册开发者账号(甚至还有专用的SDK软件包)，如感兴趣，可以课外自行进行更加深入的学习。另外，rvest、httr等软件包也是R语言抓取网页数据的常用选择，rvest包的帮助文档介绍是“容易地收割(抓取)网页”，可见其功能之强大，强烈建议关注与学习!
+
+## 以天龙八部作为离线文本数据
+
+使用jiebaR分词包进行中文分词，去停用词。
+
+构建词频统计表，最后利用wordcloud进行词云图可视化展示。
+```{r}
+library(jiebaR)
+#if(!require("wordcloud")){install.packages("wordcloud")};
+library(RColorBrewer)
+library(wordcloud)
+engine<-worker()
+# setwd("D:/R/test")
+xajh<-read.table("天龙八部.txt",header=F,sep="\t",colClasses="character")
+words<-engine<=xajh$V1
+words1<-unlist(words)
+words1<-words[words!=""]
+words2<-words1[nchar(words1)>1 & nchar(words1)<7]
+wordFreq25=sort(table(words2),decreasing=T)[1:25];wordFreq25
+pa12<-brewer.pal(8,"Dark2")
+wordcloud(names(wordFreq25),wordFreq25,min.freq=2,random.order=F,colors=pa12)
+```
+
+
+## 参考文献
+
+1.《新媒体数据挖掘：基于R语言》，深圳大学，王小峰，清华大学出版社，2018年2月。
+
+2.https://www.jianshu.com/p/c2e030187495
+
+3.https://www.jianshu.com/p/8091f86fe1f0
+
+4. https://blog.csdn.net/jytlcl/article/details/88654544
+
+5. https://www.cnblogs.com/xihehe/p/8309023.html
+
+6. https://blog.csdn.net/LEEBELOVED/article/details/83790006?ops_request_misc=%257B%2522request%255Fid%2522%253A%2522158484528219724846444576%2522%252C%2522scm%2522%253A%252220140713.130056874..%2522%257D&request_id=158484528219724846444576&biz_id=0&utm_source=distribute.pc_search_result.none-task
+ 

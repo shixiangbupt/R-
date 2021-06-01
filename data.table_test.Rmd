@@ -1,0 +1,100 @@
+---
+title: "data.table包"
+author: "周世祥"
+date: "2020年5月11日"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 简介
+
+开发者Matt Dowle是S-plus的用户，因为商业化，开发了data.table包。轻松处理GB级数据。
+data.table既是R包的名字，也是一种数据格式，作为data.frame的升级版。
+
+```{r}
+library(data.table)
+library(magrittr)
+
+```
+```{r}
+# 通过fwrite函数将部分mtcars数据集的内容输出到mtcars_DT1.csv文件中，并用fread函数读取到R中。
+fwrite(mtcars[1:5,1:3],file="./RawData/mtcars_DT1.csv",row.names =TRUE)
+fread("./RawData/mtcars_DT1.csv")
+```
+ 
+```{r}
+fread("./RawData/mtcars_DT.csv", skip = "Mazda")
+#fread("./RawData/mtcars_DT1.csv", skip = "Mazda RX4")
+# fread("./RawData/mtcars_DT1.csv", skip = "Mazda RX4 Wag")
+# fread("./RawData/mtcars_DT1.csv", skip = "710")
+# fread("./RawData/mtcars_DT1.csv", skip = "Drive")
+```
+
+```{r}
+# fread("./RawData/mtcars_DT.csv", skip = "Mazda")
+#fread("./RawData/mtcars_DT1.csv", skip = "Mazda RX4")
+  fread("./RawData/mtcars_DT1.csv", skip = "Mazda RX4 Wag")
+# 从指定的字符串位置开始读取
+# fread("./RawData/mtcars_DT1.csv", skip = "710")
+# fread("./RawData/mtcars_DT1.csv", skip = "Drive")
+```
+
+```{r fread_select AND drop}
+fread("./RawData/mtcars_DT.csv", select = c("V1","cyl"))
+# 选择或丢弃某些列
+# fread("./RawData/mtcars_DT.csv", select = c(1,3))
+# fread("./RawData/mtcars_DT.csv", drop = "cyl")
+# fread("./RawData/mtcars_DT.csv", drop = 2)
+```
+## DT[i,j,by]数据处理的句式
+```{r i j by, error=TRUE}
+DT %>% 
+  filter(i) %>% 
+  select(j) %>% 
+  group_by()
+```
+mtcars数据是从1974年美国一本关于汽车的杂志中提取的数据，对32款车型10个方面的数据进行整理，如气缸数量cyl,马力hp，等等。
+```{r i}
+DT <- data.table(mtcars,keep.rownames = TRUE)
+unique(DT$rn) #看所有车型
+```
+```{r}
+DT[rn == "Datsun 710"] #查询这款
+```
+```{r}
+DT[mpg < 18 & cyl == 6 ] #查油耗大的，即每加仑可以运行的里程mpg小，气缸为6的
+```
+```{r}
+#拥有5个档位的，油耗比为21的
+DT[gear == 5 | mpg == 21 ] # 逻辑值进行随机组合，data.frame做不到
+```
+```{r j}
+# 选取DT中的3列
+DT[,.(rn,mpg,cyl)] %>% 
+  head()
+
+```
+```{r i j}
+# 行列配合在一起设置
+models <- c("Merc 240D","Merc 230","Merc 280")
+DT[rn %in% models, .(rn,mpg,cyl,hp,gear)]
+```
+```{r by}
+# 分组计算，分别对三个不同的列，进行油耗比平均值，
+# 最大车重，最大马力的计算，对计算后的数据集按气缸数量从小到大进行排序
+DT[, .(mpg_mean = mean(mpg)), by = cyl][order(cyl)]
+DT[, .(wt_max = max(wt)), by = cyl][order(cyl)]
+DT[, .(hp_max = max(hp)), by = cyl][order(cyl)]
+DT[vs == 1 , .(hp_max = max(hp)), by = cyl][order(cyl)]
+```
+order是baseR包中的函数，两者完全兼容。代码采用两个连续的中括弧来对数据进行连续处理。与magrittr包中的管道函数%>%功能一致。
+假如是小数据集，建议用tidyverse系列中的计算函数。如果超过百万行以上的数据集，强烈推荐data.table的计算功能。
+
+## 参考文献
+
+刘健 邬书豪，《R数据科学实战工具详解与案例分析》，机械工业出版社，2019年7月。

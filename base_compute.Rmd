@@ -1,0 +1,384 @@
+---
+title: "数据计算"
+author: "周世祥"
+date: "2020年5月2日"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r GlobalOptions}
+
+
+options(knitr.duplicate.label = 'allow')
+
+
+```
+
+## baseR计算工具
+
+ 基本的数学运算函数，三角函数等。 ?S3groupGeneric或?S4groupGeneric查看。
+ 
+ ```{r cumsum}
+x <- c(1:10,NA, 11:20)
+cumsum(x)
+cumsum(x[-which(is.na(x))])#which定位，-按位置移除对应的值
+
+```
+计算差值函数diff
+
+```{r diff}
+b <- c(1:3,5,7:11,13)
+a <- diff(b) #向量的各个元素间差值
+a
+diff(b, lag = 2)
+
+length(b)
+length(a)
+
+a <- c(NA,diff(b))
+a
+```
+
+## 过滤数据框
+ 查询匹配运算符"%in%"。
+```{r %in%}
+library(tidyverse)
+df <- tibble(a = 1:6,
+             b = letters[1:6])
+df %>% 
+  filter( a %in% c(1,3,4))
+```
+```{r}
+df <- tibble(a = 1:6,
+             b = letters[1:6])
+df %>% 
+  filter( !a %in% c(1,3,4))
+```
+
+## 基本的统计函数
+
+summary函数，数据汇总，返回信息太多，干扰分析过程。
+
+统计模型函数，anova和lm，公式formula的排列顺序，线性回归模型lm中的设置格式一般为y~x，波浪线左侧多位因变量，而右侧为自变量。
+
+## dplyr包
+使用频率较高的函数：select，filter，mutate(对列进行增删改写)，arrage，group_by和summarise。
+
+行的处理：
+
+ 
+数据集paper_titles是一个含有27行观测值和3列变量的字符串型数据框。为新西兰农艺学报2015-2017年所发表的期刊名和作者，使用rds格式。
+
+arrange排序，group_by分组。
+
+dplyr包中的arrange相当于baseR中的order函数的简化版，参数设置更加简单。默认为升序排列。
+
+
+```{r arrange group}
+df <- readRDS("RawData/paper_titles.rds")
+head(df,n=3)
+```
+数值型按从小到大排；字符型按字母表顺序排。
+
+```{r}
+df %>% 
+  group_by(year) %>%  # 将数据集df由管道传递给group_by，并以year这一变量对整个数据集进行分组，之后将分组的结果传递给arrange函数进行组内排序
+  arrange(titles, .by_group = TRUE) %>% #最后通过str函数显示分组排序后的数据集
+  str()
+```
+
+```{r}
+df$year <- as.integer(df$year)
+```
+```{r}
+df %>% 
+  arrange_if(is.character) %>% #分组排序前进行条件筛选
+  head()
+
+```
+
+### filter按条件过滤行
+
+```{r filter}
+
+
+df <- readRDS("RawData/paper_titles.rds")
+head(df)
+
+df %>% 
+  filter(year == 2016 | year == 2017) %>% #逻辑或
+  head(df ,n=3)
+
+```
+```{r}
+df %>% 
+  filter(year == 2016 & year == 2017) 
+```
+```{r}
+df %>% 
+  filter(year == 2016 , year == 2017)
+```
+```{r}
+df %>% 
+  filter(year < 2017 & year > 2015)
+```
+```{r}
+
+df %>% 
+  filter(year != 2017) %>% 
+  head()
+```
+```{r}
+df %>% 
+  filter(!year %in% c(2016,2017)) %>% 
+  head(df,n=3)
+```
+符号函数%in%与filter函数属于天生绝配，假定用户有一组数据集中包含了若干观测值需要排除或包括，那么可以将筛选条件向量化后置于%in%之右，而将需要筛选的列置于其左侧，简化代码，提高效率。若使用filter(year==2015)可能会丢失符合条件的项。
+
+```{r}
+df %>%
+  filter(titles %in% grep(pattern="^Nitrogen.+", x=.$titles, value = T))
+#模式参数：^Nitrogen.+表示以单词Nitrogen开头，再加上任一字符
+#.$titles，.号表示管道函数之前的df数据框
+#value为真，代表需要函数返回其包含模式的真实字符串值
+```
+```{r}
+df %>% 
+  filter(is.na(titles))
+#默认值NA和空白值NULL的处理，is.na
+```
+```{r}
+
+df$year <- as.integer(df$year) #因为后面的%%运算不接受字符串类型
+df %>% 
+  filter_at(vars(year), any_vars((. %% 4) == 0))
+#闰年的一种表达
+```
+```{r}
+set.seed(42) #确保每次随机抽样的样本一致
+df %>% 
+  sample_n(size = 5) # 按用户指定的个数随机抽取行数据，即观测值
+
+df %>% 
+  sample_frac(size = 0.3) # 按比例抽样
+
+df %>% 
+  group_by(year) %>% 
+  sample_n(size = 2) #对分组后的数据进行抽样
+
+df %>% 
+  group_by(year) %>% 
+  arrange(titles, .by_group = TRUE) %>% 
+  filter( titles == first(titles))
+#将数据集df按year进行分组，之后按titles进行升序排列，最后抽取每组的第一行观测值
+
+#配合first来抽取指定位置的观测值
+
+```
+## bind family强行合并数据集
+
+在baseR中，rbind和cbind函数分别用于按行将若干数据集上下对接，或者按列对
+若干数据集进行左右对接。在dplyr包中，相同功能的函数名称为bind_rows和bind_cols。
+
+```{r bind}
+df <- readRDS("RawData/paper_titles.rds")
+one <- filter(df, year == 2015) #按不同的年份拆分数据集
+two <- filter(df, year == 2016)
+three <- filter(df, year ==2017)
+bind_rows(  one,   two, three, .id = "IDs") %>% 
+  glimpse() # 参数.id用于在整合后的大数据集中标注每个数据集的来源，其默认为空
+```
+```{r bind1}
+df <- readRDS("RawData/paper_titles.rds")
+one <- filter(df, year == 2015) #按不同的年份拆分数据集
+two <- filter(df, year == 2016)
+three <- filter(df, year ==2017)
+bind_rows(list(a = one, b = two, c = three), .id = "IDs") %>% 
+  glimpse() # 将需要整合的数据集放入一个或若干个list函数之内，相应的标注也改变了
+```
+
+两个数据集无须具有相同 的变量数也可以进行上下对接。不能对接的部分用NA填补。
+
+若要按列整合若干数据集，则必须要求各个数据集都要具有相同的行数，否则会报错。
+```{r}
+
+bind_cols(one[1:3, ], two[1:3, ], three[1:3, ]) %>% #先做子集筛选处理，选前三行观测值
+  glimpse()
+
+
+```
+
+## dplyr 对列column处理
+
+```{r rename select}
+df %>% 
+  rename("1" = year) %>%  #重命名列
+  glimpse()
+```
+rename和select都可以完成对变量列重命名的操作，两者的区别：rename会将重命名列及其他列同时返回为结果，而select仅返回选择的指定列及新列名。select的效率要高于rename。
+```{r}
+df %>% 
+  select("1" = year) %>% 
+  glimpse()
+```
+ 命名规则为：新列名在等号左侧，数据集原有列名在等号右侧。
+```{r}
+
+df %>% 
+  select(starts_with(match = "y"))%>% 
+  #SELECT函数有很多搭配使用的函数
+  glimpse()
+#匹配的字符串，y开头
+```
+```{r}
+df %>% 
+  select(ends_with(match = "s"))%>% 
+  glimpse()
+#匹配结尾
+```
+```{r}
+df %>% 
+  select(matches(match = ".tle.")) %>% 
+  glimpse()
+```
+```{r}
+
+df %>% 
+  select(contains(match = "ear")) %>% 
+  glimpse()
+```
+```{r}
+
+df %>% 
+  select(one_of( c("year","titles","day"))) %>% #其中之一
+  glimpse()
+
+
+```
+
+<https://blog.csdn.net/wltom1985/article/details/54973811>
+
+## mutate：dplyr包的灵魂函数之一
+mutate是变化的含义，代表着变化。如增删变量，更新变量的值或替换符合标准的值。
+
+星球大战中主要角色名字及其相关信息。选取前10行观测值和4个比较有代表性的变量。这个数据集是dplyr自带的。
+
+
+```{r mutate startwars}
+starwars_short <- starwars %>% 
+  slice(1:10) %>% 
+  select(name, height, mass, species)
+```
+研究这10个人物是否有肥胖倾向。否则完不成维护宇宙和平使命。
+```{r}
+starwars_short %>% 
+  mutate(height = height/100, #当等式左侧列名与数据集中已有列名一致时，旧列被新列替换
+         BMI = mass/(height^2),
+         cumprod(mass))
+```
+BMI为体重指数，国际标准超过30即为肥胖。
+```{r}
+starwars_short %>% 
+  mutate(height = height/100,
+         BMI = mass/(height^2),
+         obese = if_else(BMI > 30, "YES", "NO")) #obese(肥胖)
+#if_else与baseR中的ifelse功能类似
+```
+```{r}
+starwars_short %>% 
+  mutate(height = height/100,
+         BMI = mass/(height^2),
+         obese = if_else(BMI > 30, "YES", "NO")) %>% 
+  filter(species == "Human", obese == "YES")
+```
+上述代码过滤出人类来，只有人类才有肥胖的概念。
+当超过3种或3种以上的判别结果，if_else需要嵌套，dplpr推荐用case_when完成标记。
+
+```{r}
+starwars_short %>% 
+  mutate(height = height/100,
+         BMI = mass/(height^2),
+         obese = case_when(BMI > 30 ~ "YES"))
+# obese = case_when(BMI > 30 ~ "YES",BMI <= 30 ~ "NO")
+```
+
+cumsum计算角色的累积质量；
+
+cummax通过两两对比相邻的观测值，来求得两者之间的最大值并返回修改值；
+
+cummean会在累加观测值之后除以累加观测值的个数。
+
+```{r}
+starwars_short %>% 
+  select(-height, -species) %>% 
+  mutate(cum_mass = cumsum(mass),
+         max_mass = cummax(mass),
+         mean_mass = cummean(mass))
+```
+
+```{r}
+starwars_short %>% 
+  select(-species) %>% 
+  mutate(order = row_number(mass),
+         ntile = ntile(height,n = 2),
+         diff_heigt = c(NA,diff(height)))
+#diff函数计算相邻角色之间身高差
+```
+## summarise函数
+总结函数，提取集中性的指标和离散性的指标。前者包括均值，众数，中位数，后者包括标准差和区间等。
+
+```{r summarise}
+
+starwars_short %>% 
+  group_by(species) %>% 
+  summarise(avg_mass = mean(mass, na.rm = TRUE),
+            avg_height = mean(height, na.rm = TRUE),
+            n = n(),
+            sd_mass = sd(mass, na.rm = TRUE),
+            se = sd_mass/sqrt(n))
+```
+
+结论是人类平均体重要重些；
+
+平均身高要比机器人高些；
+
+人类体重分布范围比机器人更大些。
+
+```{r}
+starwars_short %>% 
+  group_by(species) %>% 
+  summarise(max_mass = max(mass, na.rm = TRUE),
+            min_mass = min(mass, na.rm = TRUE),
+            median_mass = median(mass, na.rm = TRUE),
+            range_mass = max_mass-min_mass,
+            range = diff(range(mass))) #range函数返回一个向量，diff求差值
+```
+添加最大最小值，范围。
+
+## 可视化
+
+```{r}
+starwars_short %>% 
+  group_by(species) %>% 
+  summarise(avg_mass = mean(mass, na.rm = TRUE),
+            avg_height = mean(height, na.rm = TRUE),
+            n = n(),
+            sd_mass = sd(mass, na.rm = TRUE),
+            se = sd_mass/sqrt(n)) %>% 
+  ggplot(aes(species))+ #species置于aes中作为图标的x轴
+  geom_point(aes(y = avg_mass), shape = 2)+  #变量mass作为y轴
+  geom_point(data = starwars_short, aes(y = mass))+
+  geom_errorbar(aes(ymin = avg_mass - se, ymax = avg_mass + se))+  #增加误差图层，有上限，下限
+  theme_classic()
+```
+
+## 参考文献
+
+刘健 邬书豪，《R数据科学实战工具详解与案例分析》，机械工业出版社，2019年7月。
+
+ 
