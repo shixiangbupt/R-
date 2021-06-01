@@ -1,0 +1,151 @@
+---
+title: "交互式的数据可视化"
+author: "周世祥"
+date: "2020/5/26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 交互式的数据可视化
+
+ 随着操作而展示不同细节的信息，从不同的视觉观察不同的数据。
+ 
+ 交互式的可视化R包，plotly。
+ 
+ plotly官网提供了Python
+ ，R，MATLAB，JavaScript，Excel的接口，可以很方便地在这些软件中调用plotly，实现动态可视化。
+ 
+ <https://plot.ly/>或<https://plotly.com/>
+ 
+ ### 一个定性变量
+ 
+1. 柱状图
+ 
+ 数据准备
+ 
+ 
+```{r}
+ ## 读取数据 ##
+rm(list = ls())
+# install.packages("plotly")
+library(plotly)
+# install.packages(plyr)
+library(plyr)
+# install.packages("reshape")
+library(reshape)
+load("AAPL.rda")
+load("pm2.5.rda")
+novel = read.csv("novel.csv", fileEncoding = "UTF-8", stringsAsFactors = F)
+
+names(beijing) = iconv(names(beijing), "utf-8", "gbk")  # 解决Windows用户中文乱码问题，Mac用户可跳过
+head(AAPL)
+ 
+head(beijing)
+
+```
+ 
+ 采集到的北京2016年1月1日到2016年12月17日PM2.5每日均值的数据来演示柱状图的画法。
+ 
+ 先计算出柱状图高度所对应的量，即各个地点每日的平均PM2.5，提取出地点名称，就可以输入函数plot_ly()来做柱形图。
+
+```{r} 
+ ## 柱状图 ##
+(region = colnames(beijing))
+ 
+(ave = colMeans(beijing, na.rm = TRUE))
+ 
+(p = plot_ly(x = region, y = ave, type = "bar"))
+```
+
+可以看到，南三环，丰台花园以及西直门北等北京南埠地区的PM2.5污染较严重，与新闻报道基本一致。北京市大部分工业企业集中在偏南部地区。
+
+
+
+如果想通过颜色的设置来突出这一年中平均PM2.5值最高的地区，可以通过marker来设置。
+
+```{r}
+(p = plot_ly(x = region, y = ave, type = "bar",
+             marker = list(color = c('rgba(204,204,204,1)', 'rgba(204,204,204,1)', 'rgba(204,204,204,1)',
+                                     'rgba(204,204,204,1)', 'rgba(204,204,204,1)', 'rgba(204,204,204,1)',
+                                     'rgba(204,204,204,1)', 'rgba(222,45,38,0.8)'))
+))
+#alpha透明度输入rgba就可以设置
+
+```
+
+ 
+ 2. 饼图
+ 
+ 表现整体各个组成比分比例的好工具。一般饼图只用标签显示各个类别的数值或百分比，如果想知道另一项，就要用交互式饼图。
+
+画饼图之前，要先统计出各个类别的频数，形成一个数据框，然后用它来绘制图形。
+这里直接生成一组实例数据。
+
+
+```{r} 
+## 饼图 ##
+(pieData = data.frame(value = c(10, 30, 40), group = c("A", "B", "C")))
+ 
+(p = plot_ly(pieData, values = ~ value, labels = ~ group, type = "pie"))
+```
+
+
+```
+旧版本需要：
+# layout(p,
+#        xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+#        yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+```
+
+一个定量变量
+
+3. 直方图
+
+```{r}
+## 直方图 ##
+head(AAPL)
+ 
+plot_ly(AAPL, x = ~ Volume, type = "histogram")
+```
+
+直方图可以看到大部分样本分布在哪里。
+
+下面是苹果公司股价数据。每一列都是连续数据，第六列的Volume成交量为例来展示近几年苹果公司股票成交量的分布情况。
+
+x = ~ Volume表示将Volume变量映射到x轴上。
+
+数据量是百万级的，图中M表示100万。
+
+不过在动态图中，坐标轴，标题等信息，需要用layout函数来实现。
+
+```{r}
+# 增加坐标轴及标题信息
+p = plot_ly(AAPL, x = ~ Volume, type = "histogram")
+layout(p,
+       title = "苹果股票成交量分布直方图", 
+       xaxis = list( title = "股票成交量", showgrid = F),     
+       yaxis = list( title = "频数"),    
+       margin = list(l = 50, r = 50, b = 50, t = 50, pad = 4)
+)
+```
+
+苹果股票成交量分布直方图
+ 
+
+4. 折线图
+
+```{r}
+## 折线图 ##
+# 苹果公司股价变化图，Date为时间，Adj.Close为股票每日的调整收盘价
+mat = data.frame(Date = AAPL$Date, 
+                   AAPL = round(AAPL$Adj.Close, 2))
+p = plot_ly(mat, x = ~ Date, y = ~ AAPL, type = 'scatter', mode = 'lines')
+layout(p, xaxis = list(title = " ", showticklabels = TRUE, tickfont = list(size = 8)))
+```
+
+
+表达时间连续变量变化趋势的另一种有效工具。
+
